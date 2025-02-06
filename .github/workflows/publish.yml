@@ -101,24 +101,25 @@ jobs:
 
   deploy-to-deno:
     needs: [upload-art]
-    # 参考链接：https://docs.github.com/zh/actions/writing-workflows/choosing-what-your-workflow-does/accessing-contextual-information-about-workflow-runs#github-context
+    # 参考链接：https://docs.github.com/en/actions/writing-workflows/choosing-what-your-workflow-does/accessing-contextual-information-about-workflow-runs
     # 需求是不让下面的 release-docker 任务在 push 触发的 CI 中执行。
-    # 在 jobs.<job_id>.if 中没办法使用 env 环境变量，因此没办法根据变量的值处理 push 触发的 CI 是否进行这一步。jobs.<job_id>.steps.if 是可以使用 env 的，因此只能在 steps 里面处理了。
-    if: ${{ inputs.deno ||  ( github.event_name == 'push') }}
+    # 在 jobs.<job_id>.if 中没办法使用 env 环境变量，因此没办法根据变量的值处理 push 触发的 CI 是否进行这一步。jobs.<job_id>.steps.if 是可以使用 env 的，因此只能在 steps 里面分别处理了。非常臃肿，但没办法。其实可以在 settings 中配置 vars，但是我觉得不太合适，因此就这样吧。
+    if: ${{ inputs.deno || ( github.event_name == 'push') }}
     runs-on: ubuntu-latest
     permissions:
       id-token: write
       contents: read
 
     env:
-      DEPLOY_DENO_PUSH: false
+      DEPLOY_DENO_PUSH: true
 
     steps:
       - uses: actions/download-artifact@v4
-        if: ${{ DEPLOY_DENO_PUSH }}
+        if: ${{ inputs.deno || ( github.event_name == 'push' && env.DEPLOY_DENO_PUSH == 'true' ) }}
         with:
           name: deno.js
       - name: Upload to Deno Deploy
+        if: ${{ inputs.deno || ( github.event_name == 'push' && env.DEPLOY_DENO_PUSH == 'true' ) }}
         uses: denoland/deployctl@v1
         with:
           project: meting-api-davidingplus
@@ -129,22 +130,29 @@ jobs:
     if: ${{ inputs.docker  ||  github.event_name == 'push' }}
     runs-on: ubuntu-latest
 
+    env:
+      DEPLOY_DOCKER_PUSH: false
+
     steps:
       - uses: actions/checkout@v3
+        if: ${{ inputs.docker || ( github.event_name == 'push' && env.DEPLOY_DOCKER_PUSH == 'true' ) }}
 
       - name: Login to DockerHub
+        if: ${{ inputs.docker || ( github.event_name == 'push' && env.DEPLOY_DOCKER_PUSH == 'true' ) }}
         uses: docker/login-action@v2
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Docker meta
+        if: ${{ inputs.docker || ( github.event_name == 'push' && env.DEPLOY_DOCKER_PUSH == 'true' ) }}
         id: meta
         uses: docker/metadata-action@v4
         with:
           images: ${{ secrets.DOCKERHUB_USERNAME }}/meting-api
 
       - name: Push docker image
+        if: ${{ inputs.docker || ( github.event_name == 'push' && env.DEPLOY_DOCKER_PUSH == 'true' ) }}
         uses: docker/build-push-action@v3
         with:
           push: true
