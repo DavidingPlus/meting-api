@@ -7,6 +7,7 @@ on:
     tags:
       - "v*"
 
+  # workflow_dispatch 是 GitHub 的手动触发 CI 机制，可以与 inputs 预定义的变量一起使用，对 push 触发的 CI 不生效。
   workflow_dispatch:
     inputs:
       docker:
@@ -100,14 +101,21 @@ jobs:
 
   deploy-to-deno:
     needs: [upload-art]
-    if: ${{ inputs.deno ||  github.event_name == 'push' }}
+    # 参考链接：https://docs.github.com/zh/actions/writing-workflows/choosing-what-your-workflow-does/accessing-contextual-information-about-workflow-runs#github-context
+    # 需求是不让下面的 release-docker 任务在 push 触发的 CI 中执行。
+    # 在 jobs.<job_id>.if 中没办法使用 env 环境变量，因此没办法根据变量的值处理 push 触发的 CI 是否进行这一步。jobs.<job_id>.steps.if 是可以使用 env 的，因此只能在 steps 里面处理了。
+    if: ${{ inputs.deno ||  ( github.event_name == 'push') }}
     runs-on: ubuntu-latest
     permissions:
       id-token: write
       contents: read
 
+    env:
+      DEPLOY_DENO_PUSH: false
+
     steps:
       - uses: actions/download-artifact@v4
+        if: ${{ DEPLOY_DENO_PUSH }}
         with:
           name: deno.js
       - name: Upload to Deno Deploy
