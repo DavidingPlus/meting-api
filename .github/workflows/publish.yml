@@ -113,7 +113,7 @@ jobs:
       - name: Upload to Deno Deploy
         uses: denoland/deployctl@v1
         with:
-          project: api-meting
+          project: meting-api-davidingplus
           entrypoint: deno.js
 
   release-docker:
